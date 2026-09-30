@@ -1,0 +1,5 @@
+.venv/
+audio/
+*.wav
+*.onnx
+*.onnx.json
