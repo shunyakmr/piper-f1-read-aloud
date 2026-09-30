@@ -58,7 +58,7 @@ start test.wav
 winget install AutoHotkey.AutoHotkey
 ```
 
-Then copy `speak.ahk` from this repo into `$HOME\piper` and double-click it. A green **H** icon
+Then copy `speak.ahk` and `speak.py` from this repo into `$HOME\piper` and double-click `speak.ahk`. A green **H** icon
 appears in the system tray.
 
 To start it with Windows: press `Win+R`, type `shell:startup`, and put a shortcut to `speak.ahk` there.
@@ -71,16 +71,24 @@ To start it with Windows: press `Win+R`, type `shell:startup`, and put a shortcu
             ▼
  speak.ahk (AutoHotkey)
    1. saves your clipboard, sends Ctrl+C, reads the selection, restores the clipboard
-   2. stops anything still playing
-   3. deletes recordings older than KeepHours from the audio folder
-   4. writes the text to %TEMP%\piper_in.txt
-   5. runs Piper (hidden window):
-        .venv\Scripts\python.exe -m piper -m <voice> --input-file piper_in.txt
-                                 -f audio\<date>_<time>.wav
-   6. plays the new WAV
+   2. stops any reading still in progress
+   3. shows a pop-up by the mouse: "F1 fired — loading voice…"
+   4. deletes recordings older than KeepHours from the audio folder
+   5. writes the text to %TEMP%\piper_in.txt
+   6. starts speak.py (hidden window):
+        .venv\Scripts\python.exe speak.py <voice>.onnx piper_in.txt audio\<date>_<time>.wav
             │
             ▼
- F2 → stops playback
+ speak.py (Python)
+   - loads the voice once, then Piper generates the text one sentence at a time
+   - each sentence plays as soon as it's ready, while the next is generated
+     (so long selections start speaking in a few seconds, not after the whole text)
+   - the full reading is also saved to the WAV file
+            │
+            ▼
+ pop-up changes to "🔊 Reading aloud — F2 to stop", and disappears when finished
+ F1 again → cancels the current reading and reads the new selection
+ F2       → stops reading
 ```
 
 Files after installing:
@@ -91,16 +99,17 @@ Files after installing:
 ├── en_GB-cori-high.onnx       the voice model
 ├── en_GB-cori-high.onnx.json  voice settings
 ├── speak.ahk                  the hotkey script
+├── speak.py                   plays Piper's audio sentence by sentence
 ├── test.wav                   from the install test
 └── audio\                     recordings, one per F1 press, e.g. 2026-09-30_22-51-07.wav
 ```
 
 ### Why every press gets a new file
 
-After Windows plays a WAV file, it keeps the file locked. If the script reused one file name,
-Piper couldn't overwrite it on the next press and the **previous** recording would play again.
-Giving each recording its own timestamped name avoids that. Old recordings are cleaned up
-automatically the next time you press F1.
+Each reading is saved with its own timestamped name, so you can replay recent ones from the
+`audio` folder. Recordings older than `KeepHours` are cleaned up automatically the next time you
+press F1. (An early version reused one file name; Windows kept it locked after playing, so the
+**previous** recording played again.)
 
 ## Customising
 
@@ -112,8 +121,9 @@ Edit the top of `speak.ahk`, then right-click the tray **H** icon → **Reload S
 | `KeepHours := 24` | How long recordings stay in the `audio` folder |
 | `F1::` / `F2::` | The keys. E.g. `^!s::` = Ctrl+Alt+S, `#s::` = Win+S |
 
-Extra Piper options can be added to the `cmd :=` line, e.g. `--sentence-silence 0.3` (pause between
-sentences) or `--volume 1.2`.
+Speed, pauses and volume can be set in `speak.py` by passing a `SynthesisConfig` to
+`voice.synthesize(text, ...)`, e.g. `SynthesisConfig(length_scale=0.9, volume=1.2)`
+(`from piper import SynthesisConfig`; lower `length_scale` = faster).
 
 ## Troubleshooting
 
@@ -123,7 +133,8 @@ sentences) or `--volume 1.2`.
 | Still silent | Run the test in step 4 of the manual install from `$HOME\piper` to see Piper's error message. |
 | Same passage repeats | You have an old `speak.ahk` that reuses one WAV file; copy the current one from this repo. |
 | `python` opens the Microsoft Store | Python isn't on PATH. Reinstall with "Add python.exe to PATH" ticked, or use `py`. |
-| 1–3 s delay before speaking | Normal: Piper loads the voice on every press. `-medium` / `-low` voices are faster. |
+| Pop-up says "loading" for a few seconds | Normal: the voice loads on every press, then the first sentence is generated. `-medium` / `-low` voices are faster. |
+| Long text takes a minute to start | You have an old `speak.ahk` that generates everything first; copy the current `speak.ahk` and `speak.py`. |
 | F1 no longer opens Help in apps | Expected while the script runs; change the key if you need F1. |
 
 ## Uninstall

@@ -57,11 +57,12 @@ winget install --id AutoHotkey.AutoHotkey -e --accept-source-agreements --accept
 # winget returns non-zero when the package is already installed; that's fine
 $global:LASTEXITCODE = 0
 
-# 6. Hotkey script (with the chosen voice)
-Step "Copying speak.ahk"
+# 6. Hotkey script (with the chosen voice) and its Python helper
+Step "Copying speak.ahk and speak.py"
+Copy-Item (Join-Path $PSScriptRoot "speak.py") (Join-Path $InstallDir "speak.py") -Force
 $ahkSource = Join-Path $PSScriptRoot "speak.ahk"
 $ahkTarget = Join-Path $InstallDir "speak.ahk"
-$script = Get-Content $ahkSource -Raw
+$script = Get-Content $ahkSource -Raw -Encoding UTF8
 $script = $script -replace '(?m)^Voice\s*:=\s*".*?"', "Voice    := `"$Voice`""
 if ($InstallDir -ne "$HOME\piper") {
     $escaped = $InstallDir.Replace('"', '""')
